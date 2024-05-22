@@ -5,8 +5,10 @@ use rand::prelude::*;
 
 use crate::{
     asset_loader::SceneAssets,
-    collision_detection::Collider,
+    collision_detection::{Collider, CollisionDamage},
+	health::Health,
     movement::{Acceleration, MovingObjectBundle, Velocity},    
+	schedule::InGameSet,
 };
 
 const VELOCITY_SCALAR: f32 = 5.0;
@@ -16,6 +18,8 @@ const SPAWN_RANGE_Z: Range<f32> = 0.0..25.0;
 const SPAWN_TIME_SECONDS: f32 = 1.0;
 const ROTATE_SPEED: f32 = 2.5;
 const RADIUS: f32 = 2.5;
+const HEALTH: f32 = 80.0;
+const COLLISION_DAMAGE: f32 = 35.0;
 
 #[derive(Component, Debug)]
 pub struct Asteroid;
@@ -34,7 +38,7 @@ impl Plugin for AsteroidPlugin {
 		})
 		.add_systems(
 			Update,
-			(spawn_asteroid, rotate_asteroids, handle_asteroid_collisions)
+			(spawn_asteroid, rotate_asteroids).in_set(InGameSet::EntityUpdates),
 		);
 	}
 }
@@ -75,27 +79,13 @@ fn spawn_asteroid(
 			},
 		},
 		Asteroid,
+		Health::new(HEALTH),
+		CollisionDamage::new(COLLISION_DAMAGE),
 	));
 }
 
 fn rotate_asteroids(mut query: Query<&mut Transform, With<Asteroid>>, time: Res<Time>) {
 	for mut transform in query.iter_mut() {
 		transform.rotate_local_z(ROTATE_SPEED * time.delta_seconds());
-	}
-}
-
-fn handle_asteroid_collisions(
-	mut commands: Commands,
-	query: Query<(Entity, &Collider), With<Asteroid>>,
-) {
-	for (entity, collider) in query.iter() {
-		for &collided_entity in collider.colliding_entities.iter() {
-			// check if collision is with other asteroid
-			if query.get(collided_entity).is_ok() {
-				continue;
-			}
-			// despawn asteroid
-			commands.entity(entity).despawn_recursive();
-		}
 	}
 }
